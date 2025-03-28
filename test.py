@@ -90,7 +90,11 @@ def search_book(book_name):
                 quality = bookcard.get('quality')
                 detail_url = bookcard.get('href', 'N/A')
                 download_url = get_download_url(base_url, detail_url) if detail_url else None
-
+                
+                # 获取图片URL
+                img_tag = bookcard.find('img')
+                head_img_url = img_tag.get('data-src') if img_tag and img_tag.get('data-src') else None
+                
                 book_info = {
                     'id': len(results) + 1,  # 使用列表长度作为ID
                     'title': title_elem.text.strip() if title_elem else 'Unknown',
@@ -103,7 +107,8 @@ def search_book(book_name):
                     'quality': quality if quality else 'Unknown',
                     'year': year if year else 'Unknown',
                     'detail_url': base_url + detail_url if detail_url else None,
-                    'download_url': download_url if download_url else None
+                    'download_url': download_url if download_url else None,
+                    'head_img_url': head_img_url
                 }
                 
                 results.append(book_info)
