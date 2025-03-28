@@ -1,8 +1,11 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from test import search_book, get_download_url, download_book
 import os
 import time
 import random
+import io
+import requests
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
@@ -25,40 +28,37 @@ def search():
         'books': results
     })
 
-@app.route('/api/download', methods=['POST'])
+@app.route('/api/download', methods=['GET'])
 def download():
-    """下载书籍API"""
-    data = request.get_json()
-    if not data or 'download_url' not in data:
+    """下载书籍API - 直接返回URL的二进制流"""
+    download_url = request.args.get('url')
+    if not download_url:
         return jsonify({'error': '请提供下载链接'}), 400
     
-    download_url = data['download_url']
-    filename = data.get('filename')
+    cookie = '6b61badaf837d57e645781b1288425c1'
+
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/134.0.0.0 Safari/537.36 Edg/134.0.0.0',
+        'Accept': '*/*',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8,en-GB;q=0.7,en-US;q=0.6',
+        'cookie': f'siteLanguage=zh; remix_userkey={cookie}; remix_userid=42383395; domainsNotWorking=cnlib.icu%2Cz-lib.gs',
+    }
     
-    if not filename:
-        # 从URL中提取文件名
-        filename = download_url.split('/')[-1]
-        if '?' in filename:
-            filename = filename.split('?')[0]
+    try:
+        # 直接获取URL的二进制流
+        response = requests.get(download_url, headers=headers, stream=True)
+        response.raise_for_status()
+        
+        # 直接返回二进制流
+        return response.content, 200, {
+            'Content-Type': 'application/octet-stream',
+            'Content-Disposition': 'attachment'
+        }
     
-    # 确保文件名安全
-    filename = "".join(c for c in filename if c.isalnum() or c in (' ', '-', '_', '.'))
-    filepath = os.path.join(DOWNLOAD_DIR, filename)
-    
-    # 添加随机延迟
-    delay = random.uniform(1, 3)
-    time.sleep(delay)
-    
-    success = download_book(download_url, filepath)
-    
-    if success:
-        return jsonify({
-            'status': 'success',
-            'message': '下载成功',
-            'filepath': filepath
-        })
-    else:
-        return jsonify({'error': '下载失败'}), 500
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': f'下载错误: {str(e)}'}), 500
+    except Exception as e:
+        return jsonify({'error': f'处理错误: {str(e)}'}), 500
 
 @app.route('/api/get_download_url', methods=['GET'])
 def get_download():
