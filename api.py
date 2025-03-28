@@ -78,5 +78,45 @@ def get_download():
     else:
         return jsonify({'error': '无法获取下载链接'}), 404
 
+@app.route('/api/feishu/token', methods=['POST'])
+def get_feishu_token():
+    """获取飞书 tenant_access_token"""
+    try:
+        # 飞书API配置
+        FEISHU_API_URL = "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
+        
+        # 固定的请求参数
+        payload = {
+            "app_id": "cli_a33d4ad126b8100e",
+            "app_secret": "fLQlPwLDHSzxVFL76FHDSbvN5ow4fS87"
+        }
+        
+        # 设置请求头
+        headers = {
+            'Content-Type': 'application/json; charset=utf-8',
+            'User-Agent': 'Apifox/1.0.0 (https://www.apifox.cn)',
+            'Accept': '*/*',
+            'Host': 'open.feishu.cn',
+            'Connection': 'keep-alive'
+        }
+        
+        # 发送请求
+        response = requests.post(FEISHU_API_URL, headers=headers, json=payload)
+        response.raise_for_status()  # 检查请求是否成功
+        
+        # 获取响应数据
+        response_data = response.json()
+        
+        # 检查响应状态
+        if response_data.get('code') == 0:
+            return response_data.get('tenant_access_token')
+        else:
+            return jsonify(response_data.get('msg', '获取token失败')), 500
+        
+    except requests.exceptions.RequestException as e:
+        return jsonify(f'请求飞书API失败: {str(e)}'), 500
+    except Exception as e:
+        return jsonify(f'服务器内部错误: {str(e)}'), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True) 
