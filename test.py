@@ -92,7 +92,7 @@ def search_book(book_name):
                 download_url = get_download_url(base_url, detail_url) if detail_url else None
 
                 book_info = {
-                    'id': i + 1, 
+                    'id': len(results) + 1,  # 使用列表长度作为ID
                     'title': title_elem.text.strip() if title_elem else 'Unknown',
                     'author': author_elem.text.strip() if author_elem else 'Unknown',
                     'publisher': publisher if publisher else 'Unknown',
@@ -108,8 +108,6 @@ def search_book(book_name):
                 
                 results.append(book_info)
         
-        # 按评级排序并只返回前5条记录
-        # results.sort(key=lambda x: x['rating'], reverse=True)
         return results
     
     except requests.exceptions.RequestException as e:

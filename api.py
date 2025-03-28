@@ -118,5 +118,75 @@ def get_feishu_token():
     except Exception as e:
         return jsonify(f'服务器内部错误: {str(e)}'), 500
 
+@app.route('/api/feishu/upload', methods=['POST'])
+def upload_to_feishu():
+    """上传文件到飞书"""
+    try:
+        # 获取请求参数
+        data = request.get_json()
+        if not data or 'file_name' not in data or 'file_url' not in data:
+            return jsonify('缺少必要参数'), 400
+        
+        file_name = data['file_name']
+        file_url = data['file_url']
+        
+        # 1. 获取飞书token
+        token_response = requests.post('http://localhost:5001/api/feishu/token')
+        if token_response.status_code != 200:
+            return jsonify('获取token失败'), 500
+        token = token_response.text
+        
+        # 2. 下载文件
+        download_response = requests.get(f'http://localhost:5001/api/download?url={file_url}')
+        if download_response.status_code != 200:
+            return jsonify('下载文件失败'), 500
+        file_content = download_response.content
+        
+        # 获取文件大小
+        file_size = len(file_content)
+        
+        # 3. 上传到飞书
+        FEISHU_UPLOAD_URL = "https://open.feishu.cn/open-apis/drive/v1/medias/upload_all"
+        
+        # 准备文件数据
+        files = {
+            'file': (file_name, file_content, 'application/octet-stream')
+        }
+        
+        # 准备表单数据
+        form_data = {
+            'file_name': file_name,
+            'parent_type': 'bitable_file',
+            'parent_node': 'T3F1bvJ7paQzoFsvaiicDkiInxg',
+            'size': str(file_size)
+        }
+        
+        # 设置请求头
+        headers = {
+            'Authorization': f'Bearer {token}',
+            'User-Agent': 'Apifox/1.0.0 (https://apifox.com)',
+            'Accept': '*/*',
+            'Host': 'open.feishu.cn',
+            'Connection': 'keep-alive'
+        }
+        
+        # 发送请求
+        response = requests.post(FEISHU_UPLOAD_URL, headers=headers, files=files, data=form_data)
+        response.raise_for_status()
+        
+        # 获取响应数据
+        response_data = response.json()
+        
+        # 检查响应状态并返回file_token
+        if response_data.get('code') == 0:
+            return response_data.get('data', {}).get('file_token')
+        else:
+            return jsonify(response_data.get('msg', '上传失败')), 500
+        
+    except requests.exceptions.RequestException as e:
+        return jsonify(f'请求飞书API失败: {str(e)}'), 500
+    except Exception as e:
+        return jsonify(f'服务器内部错误: {str(e)}'), 500
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5001, debug=True) 
